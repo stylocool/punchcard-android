@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:orientation="vertical"
+              android:layout_centerHorizontal="true"
+              android:layout_centerVertical="true"
+              android:gravity="center_vertical|center_horizontal|center">
+
+    <TextView android:id="@+id/project_text" style="?android:textAppearanceLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:textStyle="bold"
+        android:text="Project Name"/>
+
+    <!--
+    <TextView android:id="@+id/gps_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_marginTop="30dp"
+        android:text="Waiting for GPS"/>
+    -->
+    <Button android:id="@+id/checkin_button" style="?android:textAppearanceMedium"
+            android:layout_width="600px"
+            android:layout_height="wrap_content"
+            android:text="@string/checkin"
+            android:textAlignment="center"
+            android:layout_marginTop="10dp"
+            android:textStyle="bold"
+            android:background="@android:color/holo_green_dark"/>
+
+
+    <Button android:id="@+id/checkout_button" style="?android:textAppearanceMedium"
+            android:layout_width="600px"
+            android:layout_height="wrap_content"
+            android:text="@string/checkout"
+            android:textAlignment="center"
+            android:layout_marginTop="10dp"
+            android:textStyle="bold"
+            android:background="@android:color/holo_red_dark"/>
+
+    <Button android:id="@+id/upload_button" style="?android:textAppearanceMedium"
+            android:layout_width="600px" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:text="@string/upload"
+            android:textStyle="bold"/>
+
+    <Button android:id="@+id/close_button" style="?android:textAppearanceMedium"
+        android:layout_width="600px" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:text="@string/close"
+        android:textStyle="bold"/>
+
+</LinearLayout>
+
