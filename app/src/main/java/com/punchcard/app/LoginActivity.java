@@ -321,6 +321,7 @@ public class LoginActivity extends Activity implements LoaderManager.LoaderCallb
 
                     if (rememberMe) {
                         // save login details
+                        punchcardService.setUserId(userId);
                         punchcardService.setEmail(mEmail);
                         punchcardService.setPassword(mPassword);
                         punchcardService.setAuthenticationToken(authenticationToken);
@@ -328,6 +329,7 @@ public class LoginActivity extends Activity implements LoaderManager.LoaderCallb
                         addOrUpdateUser(mEmail, mPassword, rememberMe);
 
                     } else {
+                        punchcardService.setUserId(userId);
                         punchcardService.setEmail(mEmail);
                         punchcardService.setPassword("");
                         punchcardService.setAuthenticationToken(authenticationToken);

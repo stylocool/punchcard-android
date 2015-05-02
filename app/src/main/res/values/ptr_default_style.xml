@@ -52,6 +52,6 @@
         <item name="android:visibility">gone</item>
         <item name="android:layout_weight">1</item>
         <item name="android:textAppearance">?android:attr/textAppearanceSmall</item>
-        <item name="android:layout_below">@+id/ptr_id_text</item>
+        <!--<item name="android:layout_below">@+id/ptr_id_text</item>-->
     </style>
 </resources>

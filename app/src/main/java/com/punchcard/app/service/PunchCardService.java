@@ -98,6 +98,7 @@ public class PunchCardService {
         params.add(new BasicNameValuePair("company_id", String.valueOf(companyId)));
         params.add(new BasicNameValuePair("project_id", String.valueOf(punchcard.getProjectId())));
         params.add(new BasicNameValuePair("worker_id", String.valueOf(punchcard.getWorkerId())));
+        params.add(new BasicNameValuePair("user_id", String.valueOf(getUserId())));
 
         if (!punchcard.getCheckin().toString().endsWith("1970")) {
             params.add(new BasicNameValuePair("checkin", punchcard.getCheckin().toString()));
@@ -209,6 +210,7 @@ public class PunchCardService {
     }
 
     public Date getServerTime() {
+        if (serverTime == null) return null;
         serverTime = new Date(serverTime.getTime()+getElapsedTimeDifference());
         elapsedTime = SystemClock.elapsedRealtime();
         return serverTime;

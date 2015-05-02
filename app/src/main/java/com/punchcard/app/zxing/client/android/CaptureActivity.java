@@ -632,10 +632,13 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
       
       // Hand back whatever action they requested - this can be changed to Intents.Scan.ACTION when
       // the deprecated intent is retired.
+      String gps = getIntent().getStringExtra("GPS");
+        Log.d(TAG, "****************** GPS: "+gps);
       Intent intent = new Intent(getIntent().getAction());
       intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
       intent.putExtra(Intents.Scan.RESULT, rawResult.toString());
       intent.putExtra(Intents.Scan.RESULT_FORMAT, rawResult.getBarcodeFormat().toString());
+      intent.putExtra("GPS", gps);
       byte[] rawBytes = rawResult.getRawBytes();
       if (rawBytes != null && rawBytes.length > 0) {
         intent.putExtra(Intents.Scan.RESULT_BYTES, rawBytes);

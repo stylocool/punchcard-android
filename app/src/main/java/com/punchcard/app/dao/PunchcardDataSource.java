@@ -32,7 +32,7 @@ public class PunchcardDataSource {
 	}
 
 	public Punchcard add(Punchcard punchcard) {
-        long insertId = dbHelper.getDatabase().insert(PunchcardDBHelper.TABLE, null, getContentValues(punchcard));
+        long insertId = dbHelper.getDatabase().insertOrThrow(PunchcardDBHelper.TABLE, null, getContentValues(punchcard));
         Cursor cursor = dbHelper.getDatabase().query(PunchcardDBHelper.TABLE, ALL_COLUMNS, PunchcardDBHelper.COLUMN_ID + " = ?", new String[] { String.valueOf(insertId) }, null, null, null);
         if (cursor != null && cursor.moveToFirst()) {
             punchcard = cursorTo(cursor);
@@ -116,6 +116,24 @@ public class PunchcardDataSource {
         return punchcards;
     }
 
+    public List<Punchcard> getPunchcardsWithCheckinStatusByProjectAndWorkerId(Long projectId, Long workerId) {
+        List<Punchcard> punchcards = new ArrayList<Punchcard>();
+        Cursor cursor = dbHelper.getDatabase().query(PunchcardDBHelper.TABLE, ALL_COLUMNS, PunchcardDBHelper.COLUMN_PROJECT_ID + " = ? and " +
+                PunchcardDBHelper.COLUMN_WORKER_ID + " = ? and (" +
+                PunchcardDBHelper.COLUMN_STATUS + " = ?)", new String[] { String.valueOf(projectId), String.valueOf(workerId), Punchcard.STATUS[1] }, null, null, PunchcardDBHelper.COLUMN_ID + " DESC");
+        if (cursor != null && cursor.moveToFirst()) {
+            Log.d(TAG, "Cursor: " + cursor.getCount());
+            while (!cursor.isAfterLast()) {
+                Punchcard punchcard = cursorTo(cursor);
+                punchcards.add(punchcard);
+                cursor.moveToNext();
+            }
+        }
+        cursor.close();
+
+        return punchcards;
+    }
+
     public Punchcard getPunchcardsWithCheckinCheckoutStatusByProjectAndWorkerId(Long projectId, Long workerId) {
         List<Punchcard> punchcards = new ArrayList<Punchcard>();
         Cursor cursor = dbHelper.getDatabase().query(PunchcardDBHelper.TABLE, ALL_COLUMNS, PunchcardDBHelper.COLUMN_PROJECT_ID + " = ? and " +
@@ -165,6 +183,10 @@ public class PunchcardDataSource {
 
     public int deleteAll() {
         return dbHelper.getDatabase().delete(PunchcardDBHelper.TABLE, null, null);
+    }
+
+    public int deleteAllSynced(Long projectId) {
+        return dbHelper.getDatabase().delete(PunchcardDBHelper.TABLE, PunchcardDBHelper.COLUMN_PROJECT_ID + " = ? and " + PunchcardDBHelper.COLUMN_STATUS + " = ?", new String[] { String.valueOf(projectId), Punchcard.STATUS[3] });
     }
 
     private Punchcard cursorTo(Cursor cursor) {

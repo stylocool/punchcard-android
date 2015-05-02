@@ -2,11 +2,13 @@ package com.punchcard.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -15,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.zxing.client.android.Intents;
+import com.punchcard.app.exception.NoCheckinException;
 import com.punchcard.app.model.Punchcard;
 import com.punchcard.app.model.Worker;
 import com.punchcard.app.service.PunchCardService;
@@ -23,6 +26,7 @@ import com.punchcard.app.zxing.client.android.CaptureActivity;
 import org.json.JSONObject;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * @author Jason Pang
@@ -32,37 +36,31 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
     private static final String TAG = "PunchCardActivity";
 
     private Button scanBtn;
-    private TextView contentTxt, scannedTxt;
+    private TextView contentTxt, gpsStatusTxt;
     private PunchCardService punchcardService;
     private Long projectId;
-    private String gps;
     private String type;
-    private int scanned;
-    //private Date scannedTime;
     private double lat = 0, lng = 0;
+    private LocationManager locationManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        scanned = 0;
-        //scannedTime = new Date();
         setContentView(R.layout.activity_punchcard);
         scanBtn = (Button)findViewById(R.id.scan_button);
         contentTxt = (TextView)findViewById(R.id.scan_text);
         TextView scanMode = (TextView)findViewById(R.id.scan_mode);
-        scannedTxt = (TextView)findViewById(R.id.scanned);
+        gpsStatusTxt = (TextView)findViewById(R.id.gps_status);
 
         // init PunchCard
         punchcardService = PunchCardService.getInstance(getApplicationContext());
 
-        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 
         projectId = (Long) getIntent().getSerializableExtra("projectId");
-        //gps = (String) getIntent().getSerializableExtra("gps");
         type = (String) getIntent().getSerializableExtra("type");
-        //Log.d(TAG, projectId + " " + gps + " " + type);
 
         scanMode.setText(type.toUpperCase());
         scanBtn.setOnClickListener(this);
@@ -77,21 +75,38 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
             }
         });
 
+        /*
+        Button testButton = (Button) findViewById(R.id.test_button);
+        testButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    new PunchIt("S12345678", "1.0,1.0").execute((Void) null);
+                } catch (Exception e) {
+                    Log.e(TAG, e.getMessage(), e);
+                    showMessage("Error: " + e.getMessage(), Toast.LENGTH_SHORT);
+                }
+            }
+        });
+        */
     }
 
     public void onClick(View v) {
         if (v.getId()==R.id.scan_button) {
-            
-            Intent i = new Intent(this, CaptureActivity.class);
-            i.setAction(com.google.zxing.client.android.Intents.Scan.ACTION);
-            i.putExtra(Intents.Scan.MODE, Intents.Scan.ONE_D_MODE);
-            i.putExtra(Intents.Scan.SAVE_HISTORY, false);
-            i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            startActivityForResult(i,1);
 
+            if (isGpsEnabled() && lat > 0 && lng > 0) {
+                Intent i = new Intent(this, CaptureActivity.class);
+                i.setAction(com.google.zxing.client.android.Intents.Scan.ACTION);
+                i.putExtra(Intents.Scan.MODE, Intents.Scan.ONE_D_MODE);
+                i.putExtra(Intents.Scan.SAVE_HISTORY, false);
+                i.putExtra("GPS", lat+","+lng);
+                i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                startActivityForResult(i, 1);
+            } else {
+                showMessage("GPS is disabled!", Toast.LENGTH_SHORT);
+            }
             // disable button
             scanBtn.setEnabled(false);
-
         }
     }
 
@@ -99,38 +114,43 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
     public void onLocationChanged(Location location) {
         lat = location.getLatitude();
         lng = location.getLongitude();
-        gps = lat+","+lng;
-        scannedTxt.setText("GPS: "+gps);
+        String gps = lat+","+lng;
+        gpsStatusTxt.setText("GPS ("+isGpsEnabled()+"): "+gps);
+
         if (!scanBtn.isEnabled())
             scanBtn.setEnabled(true);
     }
 
     @Override
     public void onProviderDisabled(String provider) {
-        Log.d(TAG, "GPS is disabled");
-        scannedTxt.setText("GPS is disabled");
+        //gpsStatusTxt.setText("GPS provider "+provider+" disabled");
     }
 
     @Override
     public void onProviderEnabled(String provider) {
-
+        //gpsStatusTxt.setText("GPS provider "+provider+" enabled");
     }
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
-        Log.d(TAG,"Status: "+status);
-        scannedTxt.setText("GPS status: "+status);
+        gpsStatusTxt.setText("GPS ("+isGpsEnabled()+"): "+status);
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
-        scannedTxt.setText("Total scanned: "+scanned);
+        lat = 0;
+        lng = 0;
+        gpsStatusTxt.setText("Waiting for GPS...");
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
+        lat = 0;
+        lng = 0;
+        gpsStatusTxt.setText("Waiting for GPS...");
+
     }
 
     @Override
@@ -139,20 +159,26 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
         Log.i(TAG, "Activity destroyed");
     }
 
+    private boolean isGpsEnabled() {
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+    }
+
     public class PunchIt extends AsyncTask<Void, Void, Boolean> {
 
         private final String workPermit;
         private String msg = "";
+        private String gps = "";
 
-        PunchIt(String workPermit) {
+        PunchIt(String workPermit, String gps) {
             this.workPermit = workPermit;
+            this.gps = gps;
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
 
             try {
-                Punchcard punchcard = punch(workPermit);
+                Punchcard punchcard = punch(workPermit, gps);
                 if (punchcard == null) {
                     msg = "Error adding/updating punchcard!";
                 } else {
@@ -161,6 +187,7 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
                 return true;
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage(), e);
+                msg = e.getMessage();
             }
             return false;
         }
@@ -170,21 +197,15 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
             scanBtn.setEnabled(true);
             if (success) {
                 Log.d(TAG, msg);
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "Worker captured!", Toast.LENGTH_SHORT);
-                toast.show();
-                scanned++;
-                scannedTxt.setText("Total scanned: "+scanned);
+                showMessage(msg, Toast.LENGTH_SHORT);
             } else {
                 Log.d(TAG, msg);
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "An error has occurred! Please try again.", Toast.LENGTH_SHORT);
-                toast.show();
+                showMessage(msg, Toast.LENGTH_SHORT);
             }
         }
     }
 
-    private Punchcard punch(String workPermit) throws Exception {
+    private Punchcard punch(String workPermit, String gps) throws Exception {
         // get worker from DB
         Worker worker = punchcardService.getDbHelper().getWorkerDS().getByWorkPermit(workPermit);
         if (worker == null) {
@@ -207,14 +228,23 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
             }
         }
 
-        if (worker != null) {
+        if (!isGpsEnabled()) {
+            showMessage("GPS is disabled! Worker not captured!", Toast.LENGTH_SHORT);
+            return null;
+        }
+
+        //if (worker != null) {
 
             Date scannedTime = punchcardService.getServerTime();
 
-            Punchcard punchcard = punchcardService.getDbHelper().getPunchcardDS().getPunchcardsWithCheckinCheckoutStatusByProjectAndWorkerId(projectId, worker.getWorkerId());
+            //Punchcard punchcard = punchcardService.getDbHelper().getPunchcardDS().getPunchcardsWithCheckinCheckoutStatusByProjectAndWorkerId(projectId, worker.getWorkerId());
+            List<Punchcard> punchcards = punchcardService.getDbHelper().getPunchcardDS().getPunchcardsWithCheckinStatusByProjectAndWorkerId(projectId, worker.getWorkerId());
+            //Log.d(TAG, "******** No. of checkin records: "+punchcards.size());
+            Punchcard punchcard = punchcards.size() > 0 ? punchcards.get(0) : null;
+
             if (type.equals("checkin")) {
                 Log.d(TAG, "Doing checkin");
-                if (punchcard == null) {
+                //if (punchcard == null) {
                     // create new
                     Log.d(TAG, "Adding new punchcard");
                     punchcard = new Punchcard();
@@ -227,37 +257,37 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
                     // set status to checkin
                     punchcard.setStatus(Punchcard.STATUS[1]);
                     punchcard = punchcardService.getDbHelper().getPunchcardDS().add(punchcard);
-                } else {
-                    Log.d(TAG, "Updating existing punchcard's checkin date");
+                //} else {
+                //    Log.d(TAG, "Updating existing punchcard's checkin date");
 
-                    if (punchcard.getStatus().equals(Punchcard.STATUS[1])) {
+                //    if (punchcard.getStatus().equals(Punchcard.STATUS[1])) {
                         // existing checkin so no change in status
-                    } else if (punchcard.getStatus().equals(Punchcard.STATUS[2])) {
+                //    } else if (punchcard.getStatus().equals(Punchcard.STATUS[2])) {
                         // existing checkout so set to new
-                        punchcard.setStatus(Punchcard.STATUS[0]);
-                    }
+                //        punchcard.setStatus(Punchcard.STATUS[0]);
+                //    }
 
                     // update with new checkin date and gps
-                    punchcard.setCheckin(scannedTime);
-                    punchcard.setCheckinLocation(gps);
+                //    punchcard.setCheckin(scannedTime);
+                //    punchcard.setCheckinLocation(gps);
 
-                    punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
-                }
+                //    punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
+                //}
             } else {
                 Log.d(TAG, "Doing checkout");
                 if (punchcard == null) {
-                    Log.d(TAG, "No existing punchcard found! Adding new punchcard with checkout");
-                    punchcard = new Punchcard();
-                    punchcard.setProjectId(projectId);
-                    punchcard.setWorkerId(worker.getWorkerId());
-                    punchcard.setCheckin(null);
-                    punchcard.setCheckinLocation(null);
-                    punchcard.setCheckout(scannedTime);
-                    punchcard.setCheckoutLocation(gps);
+                    Log.d(TAG, "No existing checkin punchcard found!");
+                    //punchcard = new Punchcard();
+                    //punchcard.setProjectId(projectId);
+                    //punchcard.setWorkerId(worker.getWorkerId());
+                    //punchcard.setCheckin(null);
+                    //punchcard.setCheckinLocation(null);
+                    //punchcard.setCheckout(scannedTime);
+                    //punchcard.setCheckoutLocation(gps);
                     // set status to checkout
-                    punchcard.setStatus(Punchcard.STATUS[2]);
-                    punchcard = punchcardService.getDbHelper().getPunchcardDS().add(punchcard);
-
+                    //punchcard.setStatus(Punchcard.STATUS[2]);
+                    //punchcard = punchcardService.getDbHelper().getPunchcardDS().add(punchcard);
+                    throw new NoCheckinException();
                 } else {
                     Log.d(TAG, "Found existing");
                     // update with new checkin date
@@ -274,15 +304,16 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
                     punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
                 }
             }
-            return punchcard;
-        } else {
-            // worker not found
-            Toast toast = Toast.makeText(getApplicationContext(),
-                    "Work permit not found in system! Please inform system administrator.", Toast.LENGTH_SHORT);
-            toast.show();
 
-        }
-        return null;
+            punchcards = punchcardService.getDbHelper().getPunchcardDS().getPunchcardsWithCheckinStatusByProjectAndWorkerId(projectId, worker.getWorkerId());
+            Log.d(TAG, "******** No. of checkin records: "+punchcards.size());
+            return punchcard;
+        //} else {
+            // will not happen
+            // worker not found
+        //    showMessage("Work permit not found in system! Please inform system administrator.", Toast.LENGTH_SHORT);
+        //}
+        //return null;
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
@@ -290,20 +321,25 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
             if(resultCode == RESULT_OK){
 
                 String contents = intent.getStringExtra("SCAN_RESULT");
+                String gps = intent.getStringExtra("GPS");
+                //Log.d(TAG, "************** gps: "+gps);
                 contentTxt.setText(contents);
 
                 try {
-                    new PunchIt(contents).execute((Void) null);
+                    new PunchIt(contents, gps).execute((Void) null);
                 } catch (Exception e) {
                     Log.e(TAG, e.getMessage(), e);
+                    showMessage("Error: " + e.getMessage(), Toast.LENGTH_SHORT);
                 }
             }
             else if(resultCode == RESULT_CANCELED) { // Handle cancel
                 Log.i(TAG, "Cancelled");
-                Toast toast = Toast.makeText(getApplicationContext(),
-                        "No scan data received!", Toast.LENGTH_SHORT);
-                toast.show();
+                showMessage("No scan data received", Toast.LENGTH_SHORT);
             }
         }
+    }
+
+    private void showMessage(String message, int length) {
+        Toast.makeText(getApplicationContext(), message, length).show();
     }
 }

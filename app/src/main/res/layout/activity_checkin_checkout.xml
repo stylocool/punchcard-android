@@ -49,6 +49,11 @@
             android:layout_marginTop="10dp" android:text="@string/upload"
             android:textStyle="bold"/>
 
+    <Button android:id="@+id/housekeeping_button" style="?android:textAppearanceMedium"
+        android:layout_width="600px" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:text="@string/housekeeping"
+        android:textStyle="bold"/>
+
     <Button android:id="@+id/close_button" style="?android:textAppearanceMedium"
         android:layout_width="600px" android:layout_height="wrap_content"
         android:layout_marginTop="10dp" android:text="@string/close"

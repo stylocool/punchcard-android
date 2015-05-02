@@ -178,6 +178,11 @@ public class HomeActivity extends Activity {
                 // clear projects
                 projects = new HashMap<Long, Project>();
 
+                // force to get server time
+                if (punchcardService.getServerTime() == null) {
+                    refresh = true;
+                }
+
                 if (refresh) {
                     result = refreshProjects();
                 }

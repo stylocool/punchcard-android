@@ -91,7 +91,6 @@
     <orderEntry type="library" exported="" name="android-zxing-client-3.2.0" level="project" />
     <orderEntry type="library" exported="" name="volley-1.0.10" level="project" />
     <orderEntry type="library" exported="" name="commons-lang3-3.3.2" level="project" />
-    <orderEntry type="library" exported="" name="commons-io-2.3" level="project" />
   </component>
 </module>
 

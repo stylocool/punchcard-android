@@ -2,6 +2,7 @@
     <string name="app_name">PunchCard</string>
     <string name="close">Close</string>
     <string name="host_setting">Host settings</string>
+    <string name="housekeeping">Housekeeping</string>
     <string name="remember_me">Remember Me</string>
     <string name="save">Save</string>
     <string name="scan">Scan</string>
@@ -32,7 +33,7 @@
     <string name="ptr_last_updated">Updated: %1$s</string>
 
     <!-- server -->
-    <string name="host">52.74.83.108</string>
+    <string name="host">52.74.136.20</string>
     <string name="port">3000</string>
     <string name="login_url">login</string>
     <string name="add_punchcard_url">punchcards</string>

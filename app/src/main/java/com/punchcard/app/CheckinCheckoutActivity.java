@@ -1,6 +1,8 @@
 package com.punchcard.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
@@ -16,6 +18,8 @@ import android.widget.Toast;
 import com.punchcard.app.model.Punchcard;
 import com.punchcard.app.service.PunchCardService;
 
+import org.json.JSONObject;
+
 import java.util.Date;
 import java.util.List;
 
@@ -23,20 +27,16 @@ import java.util.List;
  * @author Jason Pang
  */
 
-public class CheckinCheckoutActivity extends Activity { //implements LocationListener {
+public class CheckinCheckoutActivity extends Activity {
     private static final String TAG = "CheckinCheckoutActivity";
 
     private PunchCardService punchcardService;
 
-    //private double lat = 0, lng = 0;
     private String projectName;
     private Long companyId, projectId;
-    //private TextView gps;
     private Button checkinButton;
     private Button checkoutButton;
     private Button uploadButton;
-
-    //private boolean disableCheck = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -64,18 +64,7 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
         TextView projectTextView = (TextView) findViewById(R.id.project_text);
         projectTextView.setText(projectName);
 
-        // read current GPS coordinates
-        //LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        //locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-
-        //gps = (TextView) findViewById(R.id.gps_location);
-
         checkinButton = (Button) findViewById(R.id.checkin_button);
-
-        // disable until gps coordinates is fixed
-        //if (!disableCheck && lat == 0 && lng == 0)
-        //    checkinButton.setEnabled(false);
-
         checkinButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -83,18 +72,11 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
                 intent.putExtra("companyId", companyId);
                 intent.putExtra("projectId", projectId);
                 intent.putExtra("type", "checkin");
-                //intent.putExtra("gps", lat+","+lng);
                 startActivity(intent);
             }
         });
 
-
         checkoutButton = (Button) findViewById(R.id.checkout_button);
-
-        // disable until gps coordinates is fixed
-        //if (!disableCheck && lat == 0 && lng == 0)
-        //    checkoutButton.setEnabled(false);
-
         checkoutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -102,7 +84,6 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
                 intent.putExtra("companyId", companyId);
                 intent.putExtra("projectId", projectId);
                 intent.putExtra("type", "checkout");
-                //intent.putExtra("gps", lat+","+lng);
                 startActivity(intent);
             }
         });
@@ -125,6 +106,31 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
             }
         });
 
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Confirm");
+        builder.setMessage("Are you sure you want to delete all uploaded records?");
+        builder.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                new HousekeepingTask().execute((Void) null);
+            }
+        });
+        builder.setNegativeButton("NO", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        final AlertDialog alert = builder.create();
+
+        Button housekeepingButton = (Button) findViewById(R.id.housekeeping_button);
+        housekeepingButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                alert.show();
+            }
+        });
+
         Button closeButton = (Button) findViewById(R.id.close_button);
         closeButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -132,41 +138,6 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
             }
         });
     }
-
-    //public void reloadLocation() {
-    //    gps.setText("Latitude:" + lat + ", Longitude:" + lng);
-    //}
-/*
-    @Override
-    public void onLocationChanged(Location location) {
-        lat = location.getLatitude();
-        lng = location.getLongitude();
-
-        // TODO: check location is within 500m of project location
-
-        if (!checkinButton.isEnabled())
-            checkinButton.setEnabled(true);
-        if (!checkoutButton.isEnabled())
-            checkoutButton.setEnabled(true);
-        reloadLocation();
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-        Log.d(TAG, "GPS is disabled");
-        gps.setText("GPS is disabled!");
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-        gps.setText("GPS is enabled");
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-        Log.d(TAG,"Status: "+status);
-    }
-*/
 
     @Override
     public void onResume() {
@@ -179,27 +150,44 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
 
         List<Punchcard> punchcards;
         private String errMsg = null;
-
+        private int uploaded = 0;
         UploadTask(List<Punchcard> punchcards) {
             this.punchcards = punchcards;
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
+
             for (Punchcard punchcard : punchcards) {
                 try {
                     Log.d(TAG, "Uploading punchcard: " + punchcard.toString());
                     String response = punchcardService.doAddPunchcard(companyId, punchcard);
                     Log.d(TAG, "Upload punchcard: " + response);
-                    // set status to sync
-                    punchcard.setStatus(Punchcard.STATUS[3]);
-                    punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
+
+                    JSONObject jsonObject = new JSONObject(response);
+                    if (jsonObject.has("punchcard")) {
+                        JSONObject punchcardObject = jsonObject.getJSONObject("punchcard");
+                        if (punchcardObject.has("id")) {
+                            // set status to sync
+                            punchcard.setStatus(Punchcard.STATUS[3]);
+                            punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
+                            uploaded++;
+                        }
+                    } else {
+                        if (jsonObject.has("success") && !jsonObject.getBoolean("success")) {
+                            punchcard.setStatus(Punchcard.STATUS[3]);
+                            punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
+                            errMsg = jsonObject.getString("message");
+                        }
+                    }
 
                 } catch (Exception e) {
                     Log.e(TAG, e.getMessage(), e);
                     errMsg = e.getMessage();
+                    return false;
                 }
             }
+
             return true;
         }
 
@@ -210,6 +198,8 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
 
             if (errMsg != null) {
                 Toast.makeText(getApplicationContext(), errMsg, Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(getApplicationContext(), uploaded + " record(s) uploaded", Toast.LENGTH_LONG).show();
             }
         }
 
@@ -218,4 +208,26 @@ public class CheckinCheckoutActivity extends Activity { //implements LocationLis
 
         }
     }
+
+    public class HousekeepingTask extends AsyncTask<Void, Void, Boolean> {
+        private int deleted = 0;
+        HousekeepingTask() {}
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            deleted = punchcardService.getDbHelper().getPunchcardDS().deleteAllSynced(projectId);
+            return true;
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            Toast.makeText(getApplicationContext(), deleted + " records deleted", Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        protected void onCancelled() {
+
+        }
+    }
+
 }
