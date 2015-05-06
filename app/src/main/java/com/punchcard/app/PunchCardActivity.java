@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.zxing.client.android.Intents;
+import com.punchcard.app.exception.ExistingCheckinException;
 import com.punchcard.app.exception.NoCheckinException;
 import com.punchcard.app.model.Punchcard;
 import com.punchcard.app.model.Worker;
@@ -244,7 +245,7 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
 
             if (type.equals("checkin")) {
                 Log.d(TAG, "Doing checkin");
-                //if (punchcard == null) {
+                if (punchcard == null) {
                     // create new
                     Log.d(TAG, "Adding new punchcard");
                     punchcard = new Punchcard();
@@ -257,7 +258,8 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
                     // set status to checkin
                     punchcard.setStatus(Punchcard.STATUS[1]);
                     punchcard = punchcardService.getDbHelper().getPunchcardDS().add(punchcard);
-                //} else {
+                } else {
+                    Log.d(TAG, "Existing checkin punchcard found!");
                 //    Log.d(TAG, "Updating existing punchcard's checkin date");
 
                 //    if (punchcard.getStatus().equals(Punchcard.STATUS[1])) {
@@ -272,7 +274,8 @@ public class PunchCardActivity extends Activity implements OnClickListener, Loca
                 //    punchcard.setCheckinLocation(gps);
 
                 //    punchcardService.getDbHelper().getPunchcardDS().update(punchcard);
-                //}
+                    throw new ExistingCheckinException();
+                }
             } else {
                 Log.d(TAG, "Doing checkout");
                 if (punchcard == null) {

@@ -11,6 +11,6 @@ public class NoCheckinException extends Exception {
 
     @Override
     public String getMessage() {
-        return "No checkin record found";
+        return "No checkin record found!";
     }
 }
